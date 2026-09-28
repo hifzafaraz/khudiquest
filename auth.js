@@ -1,0 +1,153 @@
+import React, { useState, useEffect } from 'react';
+import { FiMail, FiLock, FiInfo, FiKey, FiArrowLeft } from 'react-icons/fi';
+
+function AuthGate({ onAuthSuccess }) {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetToken, setResetToken] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [friendlyMessage, setFriendlyMessage] = useState({ type: '', text: '' });
+  const [resetShortcutLink, setResetShortcutLink] = useState('');
+
+  // PRODUCTION BACKEND URL CONFIGURATION
+  const API_BASE_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:5000' 
+    : 'https://onrender.com'; // We will get this link from Render cloud later
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('resetToken');
+    if (token) {
+      setResetToken(token);
+      setIsForgotPassword(false);
+      setIsRegistering(false);
+    }
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFriendlyMessage({ type: '', text: '' });
+    
+    if (resetToken) {
+      if (!newPassword) {
+        setFriendlyMessage({ type: 'error', text: "Please enter your new password." });
+        return;
+      }
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/reset-password-confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, newPassword })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setFriendlyMessage({ type: 'error', text: data.message });
+          return;
+        }
+        setFriendlyMessage({ type: 'success', text: data.message });
+        setResetToken(null);
+        setNewPassword('');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        setFriendlyMessage({ type: 'error', text: "Cannot connect to server." });
+      }
+      return;
+    }
+
+    if (!email || (!password && !isForgotPassword)) {
+      setFriendlyMessage({ type: 'error', text: "Please enter your details completely." });
+      return;
+    }
+
+    let targetUrl = `${API_BASE_URL}/api/auth/login`;
+    if (isRegistering) targetUrl = `${API_BASE_URL}/api/auth/register`;
+    if (isForgotPassword) targetUrl = `${API_BASE_URL}/api/auth/forgot-password`;
+
+    try {
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFriendlyMessage({ type: 'error', text: data.message || "An error occurred." });
+        return;
+      }
+
+      if (isRegistering) {
+        setFriendlyMessage({ type: 'success', text: data.message });
+        setIsRegistering(false);
+        setPassword('');
+      } else if (isForgotPassword) {
+        setFriendlyMessage({ type: 'success', text: data.message });
+        setResetShortcutLink(data.resetUrlTemplate);
+      } else {
+        localStorage.setItem('khudiquest_token', data.token);
+        onAuthSuccess(data.email);
+      }
+    } catch (err) {
+      setFriendlyMessage({ type: 'error', text: "Cannot connect to server. Ensure your backend terminal is running." });
+    }
+  };
+  if (resetToken) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-[#e6e4de] p-8 shadow-xl shadow-gray-100/50 mt-12 text-left">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 text-[#6366f1] mb-3"><FiLock className="w-4 h-4" /></div>
+          <h2 className="text-2xl font-semibold text-[#1e2229] tracking-tight">Set New Password</h2>
+          <p className="text-sm text-gray-500 mt-1.5">Your recovery token is active. Enter your new password below.</p>
+        </div>
+        {friendlyMessage.text && <div className={`p-4 rounded-xl text-xs mb-6 border ${friendlyMessage.type === 'error' ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}><span>{friendlyMessage.text}</span></div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimum 6 characters..." className="w-full px-4 py-3 bg-[#fbfbfa] border border-[#e6e4de] rounded-xl text-sm focus:outline-none focus:border-[#6366f1] text-[#1e2229]" />
+          <button type="submit" className="w-full py-3 bg-[#6366f1] text-white font-medium rounded-xl text-xs uppercase font-bold">Override Credentials</button>
+        </form>
+      </div>
+    );
+  }
+
+  if (isForgotPassword) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-[#e6e4de] p-8 shadow-xl shadow-gray-100/50 mt-12 animate-fade-in text-left">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 text-[#6366f1] mb-3"><FiKey className="w-4 h-4" /></div>
+          <h2 className="text-2xl font-semibold text-[#1e2229] tracking-tight">Reset Password</h2>
+          <p className="text-sm text-gray-500 mt-1.5">Enter your email address to receive password reset link parameters.</p>
+        </div>
+        {friendlyMessage.text && <div className={`p-4 rounded-xl text-xs mb-6 border ${friendlyMessage.type === 'error' ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}><span>{friendlyMessage.text}</span></div>}
+        {resetShortcutLink && (
+          <div className="mb-6 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-center"><a href={resetShortcutLink} className="text-xs font-bold text-emerald-700 hover:underline block uppercase tracking-wide">👉 Click Here to Reset Password Instantly</a></div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="w-full px-4 py-3 bg-[#fbfbfa] border border-[#e6e4de] rounded-xl text-sm focus:outline-none text-[#1e2229]" />
+          <button type="submit" className="w-full py-3.5 px-4 bg-[#1e2229] text-white font-medium rounded-xl text-xs uppercase font-bold">Send Reset Link</button>
+        </form>
+        <div className="mt-6 pt-4 border-t border-[#f4f2ec] text-center"><button type="button" onClick={() => { setIsForgotPassword(false); setFriendlyMessage({ type: '', text: '' }); }} className="text-xs font-semibold text-gray-400 hover:text-[#1e2229] flex items-center gap-1 mx-auto bg-transparent border-none"><FiArrowLeft className="w-3.5 h-3.5" /> Back to Sign In</button></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-[#e6e4de] p-8 shadow-xl shadow-gray-100/50 mt-12 animate-fade-in text-left">
+      <div className="text-center mb-8"><div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#f4f2ec] text-[#6366f1] mb-3"><FiKey className="w-4 h-4" /></div><h2 className="text-2xl font-semibold text-[#1e2229] tracking-tight">{isRegistering ? "Create Account" : "Sign In"}</h2></div>
+      {friendlyMessage.text && <div className={`p-4 rounded-xl text-xs mb-6 border ${friendlyMessage.type === 'error' ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}><span>{friendlyMessage.text}</span></div>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="w-full px-4 py-3 bg-[#fbfbfa] border border-[#e6e4de] rounded-xl text-sm focus:outline-none text-[#1e2229]" />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" className="w-full px-4 py-3 bg-[#fbfbfa] border border-[#e6e4de] rounded-xl text-sm focus:outline-none text-[#1e2229]" />
+        {!isRegistering && (
+          <div className="text-right"><button type="button" onClick={() => setIsForgotPassword(true)} className="text-[11px] font-semibold text-gray-400 hover:text-[#6366f1] bg-transparent border-none">Forgot password?</button></div>
+        )}
+        <button type="submit" className="w-full py-3.5 px-4 bg-[#1e2229] text-white font-medium rounded-xl text-xs uppercase font-bold">{isRegistering ? "Register Account" : "Log In & Open Workspace"}</button>
+      </form>
+      <div className="mt-6 pt-4 border-t border-[#f4f2ec] text-center">
+        <p className="text-xs text-gray-500">{isRegistering ? "Have an account?" : "New here?"} <button type="button" onClick={() => { setIsRegistering(!isRegistering); setFriendlyMessage({ type: '', text: '' }); }} className="text-[#6366f1] font-bold bg-transparent border-none">{isRegistering ? "Sign in" : "Create one free"}</button></p>
+      </div>
+    </div>
+  );
+}
+
+export default AuthGate;
