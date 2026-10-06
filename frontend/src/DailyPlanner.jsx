@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { FiPlus, FiClock, FiCheckSquare, FiLayers } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiClock, FiLayers } from 'react-icons/fi';
+import { API_BASE_URL } from './config/api';
 
 function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
   // Extract user email context dynamically from browser memory
@@ -16,7 +17,7 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
     const fetchUserTasks = async () => {
       if (!userEmail) return;
       try {
-        const response = await fetch('http://localhost:5000/api/tasks/fetch-all', {
+        const response = await fetch(`${API_BASE_URL}/api/tasks/fetch-all`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userEmail })
@@ -57,7 +58,7 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
 
     try {
       // CONNECTS LIVE TO THE TASKS BACKEND REPO PATH
-      const response = await fetch('http://localhost:5000/api/tasks/add', {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -75,7 +76,7 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
   const toggleTask = async (id, currentStatus) => {
     const nextStatus = !currentStatus;
     try {
-      const response = await fetch('http://localhost:5000/api/tasks/toggle-status', {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/toggle-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ taskId: id, completedStatus: nextStatus })

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FiCalendar, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import DailyPlanner from './DailyPlanner'; // Reuse the identical engine internally
 

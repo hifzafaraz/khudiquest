@@ -1,25 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { FiMail, FiLock, FiInfo, FiKey, FiArrowLeft } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiLock, FiKey, FiArrowLeft } from 'react-icons/fi';
+import { API_BASE_URL } from './config/api';
 
 function AuthGate({ onAuthSuccess }) {
+  const [resetToken, setResetToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('resetToken');
+    }
+    return null;
+  });
   const [isRegistering, setIsRegistering] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [resetToken, setResetToken] = useState(null);
   const [newPassword, setNewPassword] = useState('');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [friendlyMessage, setFriendlyMessage] = useState({ type: '', text: '' });
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('resetToken');
-    if (token) {
-      setResetToken(token);
-      setIsForgotPassword(false);
-      setIsRegistering(false);
-    }
-  }, []);
+  const [resetShortcutLink, setResetShortcutLink] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +28,7 @@ function AuthGate({ onAuthSuccess }) {
         return;
       }
       try {
-        const response = await fetch('http://localhost:5000/api/auth/reset-password-confirm', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/reset-password-confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: resetToken, newPassword })
@@ -45,7 +42,7 @@ function AuthGate({ onAuthSuccess }) {
         setResetToken(null);
         setNewPassword('');
         window.history.replaceState({}, document.title, window.location.pathname);
-      } catch (err) {
+      } catch {
         setFriendlyMessage({ type: 'error', text: "Cannot connect to server." });
       }
       return;
@@ -56,9 +53,9 @@ function AuthGate({ onAuthSuccess }) {
       return;
     }
 
-    let targetUrl = 'http://localhost:5000/api/auth/login';
-    if (isRegistering) targetUrl = 'http://localhost:5000/api/auth/register';
-    if (isForgotPassword) targetUrl = 'http://localhost:5000/api/auth/forgot-password';
+    let targetUrl = `${API_BASE_URL}/api/auth/login`;
+    if (isRegistering) targetUrl = `${API_BASE_URL}/api/auth/register`;
+    if (isForgotPassword) targetUrl = `${API_BASE_URL}/api/auth/forgot-password`;
 
     try {
       const response = await fetch(targetUrl, {
@@ -78,14 +75,18 @@ function AuthGate({ onAuthSuccess }) {
         setPassword('');
       } else if (isForgotPassword) {
         setFriendlyMessage({ type: 'success', text: data.message });
+        if (data.resetLink) {
+          setResetShortcutLink(data.resetLink);
+        }
       } else {
         localStorage.setItem('khudiquest_token', data.token);
         onAuthSuccess(data.email);
       }
-    } catch (err) {
+    } catch {
       setFriendlyMessage({ type: 'error', text: "Cannot connect to server. Ensure your backend terminal is running." });
     }
   };
+
   if (resetToken) {
     return (
       <div className="w-full max-w-md mx-auto bg-white rounded-3xl border border-[#e6e4de] p-8 shadow-xl shadow-gray-100/50 mt-12 text-left">
@@ -112,6 +113,13 @@ function AuthGate({ onAuthSuccess }) {
           <p className="text-sm text-gray-500 mt-1.5">Enter your email address to receive password reset link parameters.</p>
         </div>
         {friendlyMessage.text && <div className={`p-4 rounded-xl text-xs mb-6 border ${friendlyMessage.type === 'error' ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}><span>{friendlyMessage.text}</span></div>}
+        {resetShortcutLink && (
+          <div className="mb-6 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-center">
+            <a href={resetShortcutLink} className="text-xs font-bold text-emerald-700 hover:underline block uppercase tracking-wide">
+              👉 Click Here to Reset Password Instantly
+            </a>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="w-full px-4 py-3 bg-[#fbfbfa] border border-[#e6e4de] rounded-xl text-sm focus:outline-none text-[#1e2229]" />
           <button type="submit" className="w-full py-3 bg-[#1e2229] text-white font-medium rounded-xl text-xs uppercase font-bold">Send Reset Link</button>
@@ -138,7 +146,6 @@ function AuthGate({ onAuthSuccess }) {
         </div>
       )}
       
-      {/* FIXED STRUCTURE: Wrapped inputs cleanly inside form tag matrix parameters */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 pl-1">Email Address</label>

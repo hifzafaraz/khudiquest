@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FiTrendingUp, FiActivity, FiTarget, FiPieChart, FiCheckCircle, FiAward, FiBarChart2 } from 'react-icons/fi';
 
 function SuccessTracker() {
   // Real user data model setup (Set to 0 or fresh strings initially)
-  const [analytics, setAnalytics] = useState({
-    totalCompleted: 14, // Real logged actions
+  const [analytics] = useState({
+    totalCompleted: 14,
     activeStreak: 3,
     highestStreak: 7,
     globalEfficiency: 64
@@ -27,7 +27,7 @@ function SuccessTracker() {
     { name: 'Personal Balance & Habits', completed: 2, total: 10, color: 'bg-orange-600' }
   ];
 
-  const [milestones, setMilestones] = useState([
+  const [milestones] = useState([
     { id: 1, title: 'Authorized Workspace Session Opened', date: 'Today', type: 'System' }
   ]);
   return (

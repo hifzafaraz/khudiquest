@@ -1,5 +1,4 @@
-import React from 'react';
-import { FiArrowRight, FiCheckCircle, FiClock, FiCompass, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowRight, FiCompass } from 'react-icons/fi';
 
 function LandingPage({ onGetStarted }) {
   return (

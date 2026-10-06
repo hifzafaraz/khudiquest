@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import AuthGate from './AuthGate';
 import InfiniteCanvas from './InfiniteCanvas';
@@ -11,12 +11,23 @@ import Footer from './Footer';
 import ProfileSettings from './ProfileSettings';
 
 function App() {
-  const [currentView, setCurrentView] = useState('home');
-  
-  // FIXED: Default email sets to null. Reads the real validated active session from the database
-  const [userEmail, setUserEmail] = useState(null); 
-  const [streak, setStreak] = useState(1);
+  const [currentView, setCurrentView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('resetToken')) return 'auth';
+      if (localStorage.getItem('khudiquest_token') && localStorage.getItem('khudiquest_user_email')) return 'daily';
+    }
+    return 'home';
+  });
 
+  const [userEmail, setUserEmail] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('khudiquest_user_email');
+    }
+    return null;
+  });
+
+  const [streak, setStreak] = useState(1);
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [activeMode, setActiveMode] = useState('study');
@@ -26,25 +37,18 @@ function App() {
     { id: 2, text: 'Refactor database indexing architecture metrics', completed: false, quadrant: 'q2', fromTime: '14:30', toTime: '16:45', day: 'Tue' }
   ]);
 
-  // CRITICAL AUTO-LOGIN COMPILER HOOK: Remembers your session forever when tab refreshes
-  useEffect(() => {
-    const cachedToken = localStorage.getItem('khudiquest_token');
-    const cachedEmail = localStorage.getItem('khudiquest_user_email');
-    
-    if (cachedToken && cachedEmail) {
-      setUserEmail(cachedEmail);
-      setCurrentView('daily'); // Instantly routes inside your logged dashboard
-    }
-  }, []);
-
   useEffect(() => {
     let internalClock = null;
     if (isTimerRunning && secondsLeft > 0) {
       internalClock = setInterval(() => {
-        setSecondsLeft(prev => prev - 1);
+        setSecondsLeft(prev => {
+          if (prev <= 1) {
+            setIsTimerRunning(false);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else if (secondsLeft === 0) {
-      setIsTimerRunning(false);
     }
     return () => clearInterval(internalClock);
   }, [isTimerRunning, secondsLeft]);
@@ -85,7 +89,7 @@ function App() {
           <LandingPage onGetStarted={handleGetStartedNavigation} />
         ) : (
           <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
-            {currentView === 'auth' && !userEmail && <AuthGate onAuthSuccess={handleAuthSuccess} />}
+            {currentView === 'auth' && <AuthGate onAuthSuccess={handleAuthSuccess} />}
             
             {userEmail && (
               <div className="mt-2">

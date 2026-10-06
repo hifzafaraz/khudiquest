@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { FiUser, FiMail, FiLock, FiCheckCircle, FiAlertCircle, FiTrash2 } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiCheckCircle, FiAlertCircle, FiTrash2 } from 'react-icons/fi';
+import { API_BASE_URL } from './config/api';
 
 function ProfileSettings({ userEmail }) {
   const [displayName, setDisplayName] = useState('Workspace Operator');
@@ -22,7 +23,7 @@ function ProfileSettings({ userEmail }) {
       return;
     }
     try {
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, currentPassword, newPassword })
@@ -35,18 +36,18 @@ function ProfileSettings({ userEmail }) {
       setFeedbackMessage({ type: 'success', text: data.message });
       setCurrentPassword('');
       setNewPassword('');
-    } catch (err) {
+    } catch {
       setFeedbackMessage({ type: 'error', text: 'Cannot connect to server.' });
     }
   };
 
-  // NEW CORE LOGIC: Hits the delete-all endpoint parameters safely
+  // Hits the delete-all endpoint parameters safely
   const handlePurgeHistory = async () => {
     const confirmation = window.confirm("Are you absolutely sure you want to delete your entire task log history? This cannot be undone.");
     if (!confirmation) return;
 
     try {
-      const response = await fetch('http://localhost:5000/api/tasks/purge-history', {
+      const response = await fetch(`${API_BASE_URL}/api/tasks/purge-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail })
@@ -54,10 +55,9 @@ function ProfileSettings({ userEmail }) {
       const data = await response.json();
       if (response.ok) {
         setFeedbackMessage({ type: 'success', text: data.message });
-        // Smoothly triggers reloading page states to sync active grids blank instantly
         setTimeout(() => window.location.reload(), 2000);
       }
-    } catch (err) {
+    } catch {
       setFeedbackMessage({ type: 'error', text: 'Failed to complete delete transactions loop.' });
     }
   };
@@ -102,11 +102,11 @@ function ProfileSettings({ userEmail }) {
         </form>
       </div>
 
-      {/* NEW: PRIVACY DANGER ZONE DATA PURGE MODULE */}
+      {/* PRIVACY DANGER ZONE DATA PURGE MODULE */}
       <div className="bg-red-50/10 border border-red-200 rounded-3xl p-6 shadow-xs space-y-4">
         <div>
           <span className="text-[11px] font-bold text-red-600 uppercase tracking-wider block pl-1">Danger Zone (Privacy Control)</span>
-          <p className="text-xs text-gray-400 mt-1 leading-normal font-normal">Purging history instantly deletes all priority matrices, task trackers, and chronological schedules ever saved on this account across the system file database. This configuration is irreversible.</p>
+          <p className="text-xs text-gray-400 mt-1 leading-normal font-normal">Purging history instantly deletes all priority matrices, task trackers, and chronological schedules ever saved on this account across the system database. This configuration is irreversible.</p>
         </div>
         <button 
           onClick={handlePurgeHistory}

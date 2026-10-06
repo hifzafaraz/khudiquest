@@ -1,27 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const Datastore = require('nedb-promises');
-const path = require('path');
+const { TasksDB } = require('../db');
 
-// Initialize a dedicated data file strictly for user todo planning items
-const TasksDB = Datastore.create({ filename: path.join(__dirname, '../data/tasks.db'), autoload: true });
-
-// 1. POST ROUTE: Saves a brand new prioritized task node to the database file
+// 1. POST ROUTE: Saves a brand new prioritized task node to the database
 router.post('/add', async (req, res) => {
   try {
     const { text, quadrant, fromTime, toTime, day, userEmail } = req.body;
 
     if (!text || !userEmail) {
-      return res.status(400).json({ message: "Task description parameters cannot be blank." });
+      return res.status(400).json({ message: "Task description and user email cannot be blank." });
     }
 
     const newTaskNode = {
-      userEmail: userEmail.toLowerCase(),
+      userEmail: userEmail.trim().toLowerCase(),
       text,
-      quadrant,
-      fromTime,
-      toTime,
-      day,
+      quadrant: quadrant || 'q1',
+      fromTime: fromTime || '09:00',
+      toTime: toTime || '10:00',
+      day: day || 'Mon',
       completed: false,
       createdAt: new Date()
     };
@@ -30,11 +26,12 @@ router.post('/add', async (req, res) => {
     res.status(201).json(savedRecord);
 
   } catch (err) {
-    res.status(500).json({ message: "Failed to persist task vector to file storage." });
+    console.error("Error creating task:", err);
+    res.status(500).json({ message: "Failed to persist task to storage." });
   }
 });
 
-// 2. GET ROUTE: Fetches all database items belonging strictly to the active logged email
+// 2. GET/POST ROUTE: Fetches all database items belonging strictly to the active logged email
 router.post('/fetch-all', async (req, res) => {
   try {
     const { userEmail } = req.body;
@@ -43,36 +40,43 @@ router.post('/fetch-all', async (req, res) => {
       return res.status(400).json({ message: "User session email context missing." });
     }
 
-    const userTasks = await TasksDB.find({ userEmail: userEmail.toLowerCase() });
+    const userTasks = await TasksDB.find({ userEmail: userEmail.trim().toLowerCase() });
     res.json(userTasks);
 
   } catch (err) {
-    res.status(500).json({ message: "Failed to query server datastore records." });
+    console.error("Error fetching tasks:", err);
+    res.status(500).json({ message: "Failed to query tasks." });
   }
 });
 
-// 3. PUT ROUTE: Toggles completion check status or deletes specific entry records
+// 3. PUT/POST ROUTE: Toggles completion check status or updates specific task
 router.post('/toggle-status', async (req, res) => {
   try {
     const { taskId, completedStatus } = req.body;
 
+    if (!taskId) {
+      return res.status(400).json({ message: "Task ID parameter is required." });
+    }
+
     const targetTask = await TasksDB.findOne({ _id: taskId });
     if (!targetTask) {
-      return res.status(404).json({ message: "Target token node not found inside database." });
+      return res.status(404).json({ message: "Target task not found." });
     }
 
     const updatedTaskData = {
       ...targetTask,
-      completed: completedStatus
+      completed: Boolean(completedStatus)
     };
 
     await TasksDB.update({ _id: taskId }, updatedTaskData);
-    res.json({ message: "Status synchronized successfully." });
+    res.json({ message: "Status synchronized successfully.", taskId, completed: Boolean(completedStatus) });
 
   } catch (err) {
-    res.status(500).json({ message: "Error updating task attribute parameters." });
+    console.error("Error toggling task:", err);
+    res.status(500).json({ message: "Error updating task status." });
   }
 });
+
 // 4. PURGE ROUTE: Deletes ALL accumulated tasks belonging to the verified email
 router.post('/purge-history', async (req, res) => {
   try {
@@ -82,12 +86,11 @@ router.post('/purge-history', async (req, res) => {
       return res.status(400).json({ message: "User session email validation token missing." });
     }
 
-    // NeDB/MongoDB deletes all rows matching this email parameter filter criteria
-    await TasksDB.remove({ userEmail: userEmail.toLowerCase() }, { multi: true });
-
+    await TasksDB.remove({ userEmail: userEmail.trim().toLowerCase() }, { multi: true });
     res.json({ message: "Your absolute tasks workflow log history has been wiped clean." });
 
   } catch (err) {
+    console.error("Error purging tasks:", err);
     res.status(500).json({ message: "Failed to purge database data records safely." });
   }
 });

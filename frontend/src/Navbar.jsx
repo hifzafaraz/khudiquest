@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FiFeather, FiLayers, FiLogOut, FiUser, FiActivity, FiClock, FiTrendingUp, FiMenu, FiX } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiFeather, FiUser, FiActivity, FiClock, FiTrendingUp, FiMenu } from 'react-icons/fi';
 
 function Navbar({ currentView, setCurrentView, userStreak, userEmail, onLogout, secondsLeft, isTimerRunning }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

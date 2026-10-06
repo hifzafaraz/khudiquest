@@ -1,5 +1,3 @@
-import React from 'react';
-
 function Footer({ setCurrentView, userEmail }) {
   const currentYear = new Date().getFullYear();
 
