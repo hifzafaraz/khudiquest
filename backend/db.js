@@ -1,39 +1,39 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-let cachedClient = null;
-let cachedDb = null;
+const uri = process.env.MONGODB_URI;
+const options = {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
 
-// Global Connection Pool optimized for Vercel Serverless Architecture
+let client;
+let clientPromise;
+
+if (!uri) {
+  console.error("MONGODB_URI is completely missing in environment variables.");
+}
+
+// Global caching implementation to perfectly handle Vercel Serverless environment lifecycle
+if (process.env.NODE_ENV === 'development') {
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(uri, options);
+    global._mongoClientPromise = client.connect();
+  }
+  clientPromise = global._mongoClientPromise;
+} else {
+  client = new MongoClient(uri, options);
+  clientPromise = client.connect();
+}
+
 async function connectDB() {
-  // If connection is already alive and active, reuse it instantly
-  if (cachedClient && cachedDb) {
-    return cachedDb;
-  }
-
-  if (!process.env.MONGODB_URI) {
-    console.error("Database connection failed: MONGODB_URI is missing in environment variables.");
-    return null;
-  }
-
   try {
-    // Standard pool configuration to prevent "Topology is closed" issues
-    cachedClient = new MongoClient(process.env.MONGODB_URI, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-    
-    await cachedClient.connect();
-    cachedDb = cachedClient.db(); // Automatically extracts database name from URI
-    
-    console.log("MongoDB Cloud Native Pool Connected Successfully! ✨");
-    return cachedDb;
+    const connectedClient = await clientPromise;
+    return connectedClient.db(); // Extracts the exact collection database automatically
   } catch (err) {
-    console.error("Delayed serverless database connection matching failed:", err.message);
-    cachedClient = null;
-    cachedDb = null;
-    return null;
+    console.error("Serverless pool matching connection failed:", err.message);
+    throw err;
   }
 }
 
