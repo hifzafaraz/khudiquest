@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
@@ -12,18 +11,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
-
-// Serverless Database Connection Gateway Middleware
-app.use(async (req, res, next) => {
-  if (mongoose.connection.readyState === 0) {
-    try {
-      await mongoose.connect(process.env.MONGODB_URI);
-    } catch (err) {
-      console.error("Delayed connection matching failed:", err.message);
-    }
-  }
-  next();
-});
 
 // ROUTE CONNECTIVITY GATEWAY
 const authRoutes = require('./routes/auth');

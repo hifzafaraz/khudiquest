@@ -1,59 +1,87 @@
-const mongoose = require('mongoose');
+const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-// MongoDB Cloud Connection Registry
-const connectDB = async () => {
-  try {
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI);
-      console.log("MongoDB Cloud Connected Successfully! ✨");
-    }
-  } catch (err) {
-    console.error("Database connection failed:", err.message);
+let client = null;
+let db = null;
+
+// Native MongoDB Cloud Connection Pool Gateway
+async function connectDB() {
+  if (db) return db;
+  
+  if (!process.env.MONGODB_URI) {
+    console.error("Database connection failed: MONGODB_URI is empty inside environment.");
+    return null;
   }
-};
 
-// Auto-Trigger Connection
-connectDB();
+  try {
+    if (!client) {
+      client = new MongoClient(process.env.MONGODB_URI);
+      await client.connect();
+      console.log("MongoDB Cloud Driver Connected Successfully! ✨");
+    }
+    // Automatically extracts the DB name you added after .net/ or defaults to 'khudiquest_db'
+    db = client.db(); 
+    return db;
+  } catch (err) {
+    console.error("Delayed connection matching failed:", err.message);
+    return null;
+  }
+}
 
-// Schema Definitions for Khudi Quest
-const userSchema = new mongoose.Schema({}, { strict: false, timestamps: true });
-const taskSchema = new mongoose.Schema({}, { strict: false, timestamps: true });
-
-const UserModel = mongoose.model('User', userSchema);
-const TaskModel = mongoose.model('Task', taskSchema);
-
-// NeDB to Mongoose Adapter Interface (Saves your existing routes from breaking)
+// NeDB Native Wrapper Interface (Guarantees your routes don't crash)
 const User = {
-  insert: async (doc) => { await connectDB(); return await UserModel.create(doc); },
-  find: async (query) => { await connectDB(); return await UserModel.find(query).lean(); },
-  findOne: async (query) => { await connectDB(); return await UserModel.findOne(query).lean(); },
-  update: async (query, update, options) => { 
-    await connectDB(); 
-    return await UserModel.updateMany(query, update, { multi: true, ...options }); 
+  insert: async (doc) => {
+    const database = await connectDB();
+    const result = await database.collection('users').insertOne(doc);
+    return { _id: result.insertedId, ...doc };
   },
-  remove: async (query, options) => { 
-    await connectDB(); 
-    return await UserModel.deleteMany(query); 
+  find: async (query) => {
+    const database = await connectDB();
+    return await database.collection('users').find(query).toArray();
+  },
+  findOne: async (query) => {
+    const database = await connectDB();
+    return await database.collection('users').findOne(query);
+  },
+  update: async (query, update, options = {}) => {
+    const database = await connectDB();
+    // Normalizes NeDB $set or direct update matching
+    const updateDoc = update.$set ? update : { $set: update };
+    return await database.collection('users').updateMany(query, updateDoc, { upsert: options.upsert || false });
+  },
+  remove: async (query) => {
+    const database = await connectDB();
+    return await database.collection('users').deleteMany(query);
   }
 };
 
 const TasksDB = {
-  insert: async (doc) => { await connectDB(); return await TaskModel.create(doc); },
-  find: async (query) => { await connectDB(); return await TaskModel.find(query).lean(); },
-  findOne: async (query) => { await connectDB(); return await TaskModel.findOne(query).lean(); },
-  update: async (query, update, options) => { 
-    await connectDB(); 
-    return await TaskModel.updateMany(query, update, { multi: true, ...options }); 
+  insert: async (doc) => {
+    const database = await connectDB();
+    const result = await database.collection('tasks').insertOne(doc);
+    return { _id: result.insertedId, ...doc };
   },
-  remove: async (query, options) => { 
-    await connectDB(); 
-    return await TaskModel.deleteMany(query); 
+  find: async (query) => {
+    const database = await connectDB();
+    return await database.collection('tasks').find(query).toArray();
+  },
+  findOne: async (query) => {
+    const database = await connectDB();
+    return await database.collection('tasks').findOne(query);
+  },
+  update: async (query, update, options = {}) => {
+    const database = await connectDB();
+    const updateDoc = update.$set ? update : { $set: update };
+    return await database.collection('tasks').updateMany(query, updateDoc, { upsert: options.upsert || false });
+  },
+  remove: async (query) => {
+    const database = await connectDB();
+    return await database.collection('tasks').deleteMany(query);
   }
 };
 
 module.exports = {
   User,
   TasksDB,
-  getDatastorePath: () => "" // Keeps compatibility intact if called elsewhere
+  getDatastorePath: () => ""
 };
