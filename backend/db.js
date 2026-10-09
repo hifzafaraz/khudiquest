@@ -1,38 +1,47 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-let client = null;
-let db = null;
+let cachedClient = null;
+let cachedDb = null;
 
-// Native MongoDB Cloud Connection Pool Gateway
+// Global Connection Pool optimized for Vercel Serverless Architecture
 async function connectDB() {
-  if (db) return db;
-  
+  // If connection is already alive and active, reuse it instantly
+  if (cachedClient && cachedDb) {
+    return cachedDb;
+  }
+
   if (!process.env.MONGODB_URI) {
-    console.error("Database connection failed: MONGODB_URI is empty inside environment.");
+    console.error("Database connection failed: MONGODB_URI is missing in environment variables.");
     return null;
   }
 
   try {
-    if (!client) {
-      client = new MongoClient(process.env.MONGODB_URI);
-      await client.connect();
-      console.log("MongoDB Cloud Driver Connected Successfully! ✨");
-    }
-    // Automatically extracts the DB name you added after .net/ or defaults to 'khudiquest_db'
-    db = client.db(); 
-    return db;
+    // Standard pool configuration to prevent "Topology is closed" issues
+    cachedClient = new MongoClient(process.env.MONGODB_URI, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    
+    await cachedClient.connect();
+    cachedDb = cachedClient.db(); // Automatically extracts database name from URI
+    
+    console.log("MongoDB Cloud Native Pool Connected Successfully! ✨");
+    return cachedDb;
   } catch (err) {
-    console.error("Delayed connection matching failed:", err.message);
+    console.error("Delayed serverless database connection matching failed:", err.message);
+    cachedClient = null;
+    cachedDb = null;
     return null;
   }
 }
 
-// NeDB Native Wrapper Interface (Guarantees your routes don't crash)
+// NeDB to MongoDB Native Dynamic Mapping Adapter
 const User = {
   insert: async (doc) => {
     const database = await connectDB();
-    const result = await database.collection('users').insertOne(doc);
+    const result = await database.collection('users').insertOne({ ...doc });
     return { _id: result.insertedId, ...doc };
   },
   find: async (query) => {
@@ -45,7 +54,6 @@ const User = {
   },
   update: async (query, update, options = {}) => {
     const database = await connectDB();
-    // Normalizes NeDB $set or direct update matching
     const updateDoc = update.$set ? update : { $set: update };
     return await database.collection('users').updateMany(query, updateDoc, { upsert: options.upsert || false });
   },
@@ -58,7 +66,7 @@ const User = {
 const TasksDB = {
   insert: async (doc) => {
     const database = await connectDB();
-    const result = await database.collection('tasks').insertOne(doc);
+    const result = await database.collection('tasks').insertOne({ ...doc });
     return { _id: result.insertedId, ...doc };
   },
   find: async (query) => {
