@@ -8,31 +8,30 @@ const options = {
   socketTimeoutMS: 45000,
 };
 
-let client;
-let clientPromise;
-
 if (!uri) {
   console.error("MONGODB_URI is completely missing in environment variables.");
 }
 
-// Global caching implementation to perfectly handle Vercel Serverless environment lifecycle
-if (process.env.NODE_ENV === 'development') {
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
-  }
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+// Global caching to safely reuse connections in Vercel's serverless environment.
+// This avoids creating a brand-new MongoClient on every request (which causes
+// connection exhaustion and the tlsv1/SSL errors you were seeing).
+let clientPromise;
+
+if (!global._mongoClientPromise) {
+  const client = new MongoClient(uri, options);
+  global._mongoClientPromise = client.connect();
 }
+clientPromise = global._mongoClientPromise;
 
 async function connectDB() {
   try {
     const connectedClient = await clientPromise;
-    return connectedClient.db(); // Extracts the exact collection database automatically
+    // Explicitly target the database so it doesn't fall back to "test"
+    return connectedClient.db('khudiquest');
   } catch (err) {
     console.error("Serverless pool matching connection failed:", err.message);
+    // Reset the cache so the next invocation retries a fresh connection
+    global._mongoClientPromise = null;
     throw err;
   }
 }
