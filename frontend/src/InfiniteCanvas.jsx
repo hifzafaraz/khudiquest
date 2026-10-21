@@ -1,14 +1,13 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
-import { FiPlus, FiClock, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiClock, FiTrash2, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 
 function InfiniteCanvas() {
   const [canvasStyle, setCanvasStyle] = useState('grid');
   const [saveStatus, setSaveStatus] = useState('Workspace active');
-  const [canvasInstanceKey, setCanvasInstanceKey] = useState('initial-key');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // 🔑 Hold reference to tldraw editor instance
   const editorRef = useRef(null);
 
   const getCurrentWeekDays = () => {
@@ -37,6 +36,18 @@ function InfiniteCanvas() {
     return cachedData ? JSON.parse(cachedData) : {};
   });
 
+  const savedJournalsRef = useRef(savedJournals);
+  const selectedDayRef = useRef(selectedDayObj);
+  useEffect(() => { savedJournalsRef.current = savedJournals; }, [savedJournals]);
+  useEffect(() => { selectedDayRef.current = selectedDayObj; }, [selectedDayObj]);
+
+  // 🔑 Escape key se fullscreen band
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const getStyleClass = () => {
     switch (canvasStyle) {
       case 'grid': return 'bg-[linear-gradient(to_right,#e6e4de_1px,transparent_1px),linear-gradient(to_bottom,#e6e4de_1px,transparent_1px)] [background-size:24px_24px] bg-white';
@@ -46,12 +57,9 @@ function InfiniteCanvas() {
     }
   };
 
-  // 🔑 Capture the editor when tldraw mounts
   const handleMount = useCallback((editor) => {
     editorRef.current = editor;
-
-    // If there's saved data for the currently selected day, load it in
-    const saved = savedJournals[selectedDayObj.dateStr];
+    const saved = savedJournalsRef.current?.[selectedDayRef.current?.dateStr];
     if (saved?.snapshot) {
       try {
         editor.loadSnapshot(saved.snapshot);
@@ -59,9 +67,8 @@ function InfiniteCanvas() {
         console.warn('Failed to load snapshot', e);
       }
     }
-  }, [savedJournals, selectedDayObj]);
+  }, []);
 
-  // 🔑 Save ACTUAL canvas contents + timestamp
   const handleSaveEntry = () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -71,7 +78,6 @@ function InfiniteCanvas() {
       minute: '2-digit',
     });
 
-    // Serialize the full document (shapes, bindings, assets, etc.)
     const snapshot = editor.getSnapshot();
 
     const updatedDatabase = {
@@ -79,7 +85,7 @@ function InfiniteCanvas() {
       [selectedDayObj.dateStr]: {
         hasData: true,
         savedTime: timestampString,
-        snapshot, // 👈 the important part
+        snapshot,
       },
     };
 
@@ -99,7 +105,6 @@ function InfiniteCanvas() {
     setSavedJournals(updatedDatabase);
     localStorage.setItem('mindful_canvas_journal_db', JSON.stringify(updatedDatabase));
 
-    // Wipe the canvas clean
     const editor = editorRef.current;
     if (editor) {
       const ids = Array.from(editor.getCurrentPageShapeIds());
@@ -109,7 +114,6 @@ function InfiniteCanvas() {
     setSaveStatus(`Purged log record for ${selectedDayObj.dateStr}`);
   };
 
-  // 🔑 Switch day -> load its saved snapshot into the SAME editor instance
   const handleSelectDay = (day) => {
     const editor = editorRef.current;
     setSelectedDayObj(day);
@@ -122,7 +126,6 @@ function InfiniteCanvas() {
       if (saved?.snapshot) {
         editor.loadSnapshot(saved.snapshot);
       } else {
-        // Blank slate: clear all shapes on current page
         const ids = Array.from(editor.getCurrentPageShapeIds());
         if (ids.length) editor.deleteShapes(ids);
       }
@@ -132,8 +135,14 @@ function InfiniteCanvas() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-4 animate-fade-in flex flex-col h-[78vh] space-y-3">
-      {/* HEADER */}
+    <div
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-[9999] bg-white flex flex-col p-3 gap-3'
+          : 'w-full max-w-6xl mx-auto mt-4 animate-fade-in flex flex-col h-[78vh] space-y-3'
+      }
+    >
+      {/* HEADER — same features, plus fullscreen toggle */}
       <div className="bg-white border border-[#e6e4de] rounded-3xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -167,6 +176,13 @@ function InfiniteCanvas() {
 
         <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
           <button
+            onClick={() => setIsFullscreen((v) => !v)}
+            className="p-2 border border-[#e6e4de] text-[#1e2229] hover:bg-gray-50 rounded-xl transition-all"
+            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen canvas'}
+          >
+            {isFullscreen ? <FiMinimize2 className="w-3.5 h-3.5" /> : <FiMaximize2 className="w-3.5 h-3.5" />}
+          </button>
+          <button
             onClick={handleSaveEntry}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1e2229] hover:bg-[#374151] text-white text-xs font-semibold rounded-xl shadow-xs transition-all w-full sm:w-auto justify-center"
           >
@@ -184,12 +200,11 @@ function InfiniteCanvas() {
         </div>
       </div>
 
-      {/* CANVAS */}
+      {/* CANVAS — flex-grow, ab poori bachi hui jagah le raha hai */}
       <div className="flex-grow w-full relative border border-[#e6e4de] rounded-3xl shadow-xl shadow-gray-100/40 overflow-hidden min-h-[400px]">
         <div className={`absolute inset-0 transition-all duration-300 pointer-events-none opacity-50 z-0 ${getStyleClass()}`} />
         <div className="absolute inset-0 z-10 mix-blend-multiply">
           <Tldraw
-            key={canvasInstanceKey}
             inferDarkMode={false}
             className="w-full h-full"
             onMount={handleMount}

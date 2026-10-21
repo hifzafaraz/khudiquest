@@ -1,38 +1,29 @@
 import { useState, useEffect } from 'react';
-import { FiClock, FiLayers } from 'react-icons/fi';
-import { API_BASE_URL } from './config/api';
+import { FiClock, FiLayers, FiCheck, FiTrash2 } from 'react-icons/fi';
 
 function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
-  // Extract user email context dynamically from browser memory
-  const userEmail = localStorage.getItem('khudiquest_user_email') || '';
-
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
   const [selectedQuadrant, setSelectedQuadrant] = useState('q1');
   const [fromTime, setFromTime] = useState('09:00');
   const [toTime, setToTime] = useState('10:00');
 
-  // CORE METRIC ENGINE: Fetches persistent records from database when tab loads
+  // 🔑 Load tasks from localStorage
   useEffect(() => {
-    const fetchUserTasks = async () => {
-      if (!userEmail) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/tasks/fetch-all`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userEmail })
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setTasks(data);
-        }
-      } catch (err) {
-        console.error("Error connecting to database tasks sync node:", err);
-      }
-    };
+    const raw = localStorage.getItem('app_tasks_db');
+    if (raw) {
+      setTasks(JSON.parse(raw));
+    } else {
+      setTasks([]);
+    }
+  }, [focusedDay]);
 
-    fetchUserTasks();
-  }, [userEmail, focusedDay]);
+  // 🔑 Save tasks to localStorage
+  const syncTasksToStorage = (updatedTasks) => {
+    setTasks(updatedTasks);
+    localStorage.setItem('app_tasks_db', JSON.stringify(updatedTasks));
+    window.dispatchEvent(new CustomEvent('tasks:changed'));
+  };
 
   const formatTimeTo12H = (timeString) => {
     if (!timeString) return '';
@@ -43,51 +34,52 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
     return `${hours < 10 ? '0' + hours : hours}:${minutesStr} ${ampm}`;
   };
 
-  const handleAddTask = async (e) => {
+  const handleAddTask = (e) => {
     e.preventDefault();
-    if (!newTask.trim() || !userEmail) return;
+    if (!newTask.trim()) return;
 
-    const payload = {
+    const newTaskObj = {
+      _id: 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9),
       text: newTask,
       quadrant: selectedQuadrant,
       fromTime,
       toTime,
       day: focusedDay,
-      userEmail
+      completed: false,
+      completedAt: null
     };
 
-    try {
-      // CONNECTS LIVE TO THE TASKS BACKEND REPO PATH
-      const response = await fetch(`${API_BASE_URL}/api/tasks/add`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const savedTask = await response.json();
-      if (response.ok) {
-        setTasks([...tasks, savedTask]);
-        setNewTask('');
+    const updatedTasks = [...tasks, newTaskObj];
+    syncTasksToStorage(updatedTasks);
+    setNewTask('');
+  };
+
+  // ✅ Tick (Complete) karne ka function
+  const toggleTask = (id, currentStatus) => {
+    const updatedTasks = tasks.map(t => {
+      if (t._id === id) {
+        const nextStatus = !currentStatus;
+        return {
+          ...t,
+          completed: nextStatus,
+          completedAt: nextStatus ? new Date().toISOString() : null
+        };
       }
-    } catch (err) {
-      console.error("Failed to commit task insertion parameters:", err);
+      return t;
+    });
+
+    syncTasksToStorage(updatedTasks);
+    
+    if (!currentStatus) {
+      const completedTask = updatedTasks.find(t => t._id === id);
+      if (completedTask) onTaskComplete(completedTask);
     }
   };
 
-  const toggleTask = async (id, currentStatus) => {
-    const nextStatus = !currentStatus;
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/toggle-status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId: id, completedStatus: nextStatus })
-      });
-      if (response.ok) {
-        setTasks(tasks.map(t => t._id === id ? { ...t, completed: nextStatus } : t));
-        if (nextStatus) onTaskComplete();
-      }
-    } catch (err) {
-      console.error("Failed to sync toggle transaction flags:", err);
-    }
+  // 🗑️ Delete karne ka function
+  const deleteTask = (id) => {
+    const updatedTasks = tasks.filter(t => t._id !== id);
+    syncTasksToStorage(updatedTasks);
   };
 
   const quadrants = [
@@ -97,8 +89,8 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
     { id: 'q4', title: 'Q4: Neither (Eliminate)', desc: 'Phase out elements.', color: 'border-l-gray-400 bg-gray-50/40' }
   ];
 
-  // Filter out lists specific to current day window variables
   const activeDayTasks = tasks.filter(t => t.day === focusedDay);
+
   return (
     <div className="w-full space-y-4">
       {isDashboard && (
@@ -132,7 +124,7 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
                 </select>
                 <div className="flex items-center gap-1 bg-white border border-[#e6e4de] px-2 py-1.5 rounded-xl"><span className="text-[10px] font-bold text-gray-400">From:</span><input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} className="text-xs text-[#1e2229] focus:outline-none w-full bg-transparent" /></div>
                 <div className="flex items-center gap-1 bg-white border border-[#e6e4de] px-2 py-1.5 rounded-xl"><span className="text-[10px] font-bold text-gray-400">To:</span><input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} className="text-xs text-[#1e2229] focus:outline-none w-full bg-transparent" /></div>
-                <button type="submit" className="py-2.5 bg-[#1e2229] text-white font-medium rounded-xl text-xs hover:bg-[#374151] transition-all+ shadow-sm uppercase tracking-wider font-bold">+ Allocate</button>
+                <button type="submit" className="py-2.5 bg-[#1e2229] text-white font-medium rounded-xl text-xs hover:bg-[#374151] transition-all shadow-sm uppercase tracking-wider font-bold">+ Allocate</button>
               </div>
             </form>
 
@@ -144,10 +136,33 @@ function DailyPlanner({ focusedDay, onTaskComplete, isDashboard }) {
                     <div className="mb-2 flex justify-between items-center"><h4 className="text-xs font-bold text-[#1e2229] tracking-wide uppercase">{q.title}</h4></div>
                     <div className="space-y-1.5 flex-grow overflow-y-auto max-h-[140px]">
                       {quadrantTasks.length === 0 ? <p className="text-[11px] text-gray-300 italic pt-1">Empty pool</p> : quadrantTasks.map(task => (
-                        <div key={task._id} onClick={() => toggleTask(task._id, task.completed)} className={`p-2 rounded-xl border text-xs cursor-pointer flex items-center justify-between gap-2 ${task.completed ? 'bg-gray-50 text-gray-300 line-through' : 'bg-white text-[#4b5563] shadow-sm'}`}>
-                          <span className="truncate max-w-[130px] text-left">{task.text}</span>
-                          <span className="text-[8px] font-mono tracking-tight text-indigo-500 shrink-0">{formatTimeTo12H(task.fromTime)}</span>
+                        
+                        // 🔑 Yahan Task UI update kiya gaya hai
+                        <div key={task._id} className={`p-2 rounded-xl border text-xs flex items-center justify-between gap-2 transition-all ${task.completed ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-white text-[#4b5563] shadow-sm border-[#e6e4de]'}`}>
+                          <div className="flex items-center gap-2 flex-grow overflow-hidden">
+                            {/* ✅ Tick Button */}
+                            <button 
+                              onClick={() => toggleTask(task._id, task.completed)}
+                              className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${task.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-500 text-transparent'}`}
+                            >
+                              <FiCheck className="w-3 h-3" />
+                            </button>
+                            <span className={`truncate max-w-[130px] text-left ${task.completed ? 'line-through' : ''}`}>{task.text}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[8px] font-mono tracking-tight text-indigo-500">{formatTimeTo12H(task.fromTime)}</span>
+                            {/* 🗑️ Delete Button */}
+                            <button 
+                              onClick={() => deleteTask(task._id)}
+                              className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                              title="Delete Task"
+                            >
+                              <FiTrash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
+
                       ))}
                     </div>
                   </div>
