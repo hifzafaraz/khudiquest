@@ -13,9 +13,10 @@ function AuthGate({ onAuthSuccess }) {
   const [resetShortcutLink, setResetShortcutLink] = useState('');
 
   // PRODUCTION BACKEND URL CONFIGURATION
-  const API_BASE_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000' 
-    : 'https://onrender.com'; // We will get this link from Render cloud later
+const API_BASE_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000' 
+  : 'https://khudiquestbackend.vercel.app'; 
+
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
