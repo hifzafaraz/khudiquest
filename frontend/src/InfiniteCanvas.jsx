@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { FiPlus, FiClock, FiTrash2, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 
-function InfiniteCanvas() {
+// 🔥 Using React.memo taake parent ke timer se ye re-render na ho
+const InfiniteCanvas = memo(function InfiniteCanvas() {
   const [canvasStyle, setCanvasStyle] = useState('grid');
   const [saveStatus, setSaveStatus] = useState('Workspace active');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -36,11 +37,18 @@ function InfiniteCanvas() {
     return cachedData ? JSON.parse(cachedData) : {};
   });
 
-  // 🔑 Refs for stable mount
+  // Refs for stable mount
   const savedJournalsRef = useRef(savedJournals);
   const selectedDayRef = useRef(selectedDayObj);
   useEffect(() => { savedJournalsRef.current = savedJournals; }, [savedJournals]);
   useEffect(() => { selectedDayRef.current = selectedDayObj; }, [selectedDayObj]);
+
+  // Escape key se fullscreen band
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const getStyleClass = () => {
     switch (canvasStyle) {
@@ -51,9 +59,11 @@ function InfiniteCanvas() {
     }
   };
 
-  // 🔑 Stable Mount: Prevents features from disappearing
+  // 🔥 Mount function - Sirf ek baar chalega
   const handleMount = useCallback((editor) => {
     editorRef.current = editor;
+    
+    // Load data for the initially selected day
     const saved = savedJournalsRef.current?.[selectedDayRef.current?.dateStr];
     if (saved?.snapshot) {
       try {
@@ -252,6 +262,6 @@ function InfiniteCanvas() {
       </div>
     </div>
   );
-}
+});
 
 export default InfiniteCanvas;
