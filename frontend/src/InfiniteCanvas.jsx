@@ -3,7 +3,7 @@ import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { FiPlus, FiClock, FiTrash2, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 
-// 🔥 Using React.memo taake parent ke timer se ye re-render na ho
+// 🔥 React.memo use kiya hai taake baqi app re-render ho to canvas disturb na ho
 const InfiniteCanvas = memo(function InfiniteCanvas() {
   const [canvasStyle, setCanvasStyle] = useState('grid');
   const [saveStatus, setSaveStatus] = useState('Workspace active');
@@ -37,7 +37,6 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
     return cachedData ? JSON.parse(cachedData) : {};
   });
 
-  // Refs for stable mount
   const savedJournalsRef = useRef(savedJournals);
   const selectedDayRef = useRef(selectedDayObj);
   useEffect(() => { savedJournalsRef.current = savedJournals; }, [savedJournals]);
@@ -59,11 +58,8 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
     }
   };
 
-  // 🔥 Mount function - Sirf ek baar chalega
   const handleMount = useCallback((editor) => {
     editorRef.current = editor;
-    
-    // Load data for the initially selected day
     const saved = savedJournalsRef.current?.[selectedDayRef.current?.dateStr];
     if (saved?.snapshot) {
       try {
@@ -205,12 +201,16 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
         </div>
       </div>
 
-      {/* CANVAS */}
-      <div className="flex-grow w-full relative border border-[#e6e4de] rounded-3xl shadow-xl shadow-gray-100/40 overflow-hidden min-h-[400px]">
+      {/* 🔥 CANVAS AREA WITH FIXES */}
+      <div className="flex-grow w-full relative border border-[#e6e4de] rounded-3xl shadow-xl shadow-gray-100/40 overflow-hidden min-h-[400px] bg-white">
+        {/* Background Pattern */}
         <div className={`absolute inset-0 transition-all duration-300 pointer-events-none opacity-50 z-0 ${getStyleClass()}`} />
-        <div className="absolute inset-0 z-10 mix-blend-multiply">
+        
+        {/* Tldraw Container - No mix-blend-multiply, fixed positioning */}
+        <div className="absolute inset-0 z-10 w-full h-full">
           <Tldraw
             inferDarkMode={false}
+            hideUi={false} // Tools hide nahi honge
             className="w-full h-full"
             onMount={handleMount}
           />
