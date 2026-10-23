@@ -3,7 +3,6 @@ import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { FiPlus, FiClock, FiTrash2, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 
-// 🔥 React.memo use kiya hai taake baqi app re-render ho to canvas disturb na ho
 const InfiniteCanvas = memo(function InfiniteCanvas() {
   const [canvasStyle, setCanvasStyle] = useState('grid');
   const [saveStatus, setSaveStatus] = useState('Workspace active');
@@ -42,7 +41,6 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
   useEffect(() => { savedJournalsRef.current = savedJournals; }, [savedJournals]);
   useEffect(() => { selectedDayRef.current = selectedDayObj; }, [selectedDayObj]);
 
-  // Escape key se fullscreen band
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
     window.addEventListener('keydown', onKey);
@@ -201,18 +199,18 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
         </div>
       </div>
 
-      {/* 🔥 CANVAS AREA WITH FIXES */}
-      <div className="flex-grow w-full relative border border-[#e6e4de] rounded-3xl shadow-xl shadow-gray-100/40 overflow-hidden min-h-[400px] bg-white">
+      {/* 🔥 CANVAS AREA FIXED */}
+      <div className="flex-grow w-full relative border border-[#e6e4de] rounded-3xl shadow-xl shadow-gray-100/40 overflow-hidden min-h-[500px] bg-white">
         {/* Background Pattern */}
-        <div className={`absolute inset-0 transition-all duration-300 pointer-events-none opacity-50 z-0 ${getStyleClass()}`} />
+        <div className={`absolute inset-0 transition-all duration-300 pointer-events-none opacity-40 z-0 ${getStyleClass()}`} />
         
-        {/* Tldraw Container - No mix-blend-multiply, fixed positioning */}
-        <div className="absolute inset-0 z-10 w-full h-full">
+        {/* Tldraw Container - Properly centered and sized */}
+        <div className="absolute inset-0 z-10 w-full h-full tldraw-wrapper">
           <Tldraw
             inferDarkMode={false}
-            hideUi={false} // Tools hide nahi honge
             className="w-full h-full"
             onMount={handleMount}
+            autoFocus={false}
           />
         </div>
       </div>
