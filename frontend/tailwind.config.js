@@ -6,7 +6,7 @@ export default {
   ],
   darkMode: 'class',
   corePlugins: {
-    preflight: false, // 🔥 Ye line zaroori hai
+    
   },
   theme: {
     extend: {},

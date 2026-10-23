@@ -1,0 +1,5 @@
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+/* @import "tailwindcss/preflight.css" layer(base);  <-- Ye line humne jaan boojh kar hata di hai */
+@import "tailwindcss/utilities.css" layer(utilities);
