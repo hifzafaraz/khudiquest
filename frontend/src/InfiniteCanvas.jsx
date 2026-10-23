@@ -152,7 +152,7 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
           <span className="text-[10px] text-gray-400 font-mono hidden md:inline">&bull; {saveStatus}</span>
         </div>
 
-        <div className="flex bg-[#f4f2ec] p-0.5 rounded-xl border border-[#e6e4de] overflow-x-auto w-full sm:w-auto">
+        <div className="flex bg-[#f4f2ec] p-0.5 rounded-xl border border-[#e6e4de] overflow-x-auto w-full sm:w-auto relative z-50">
           {[
             { id: 'plain', label: 'Plain' },
             { id: 'grid', label: 'Grid' },
@@ -207,11 +207,14 @@ const InfiniteCanvas = memo(function InfiniteCanvas() {
         {/* Tldraw Container - Properly centered and sized */}
         <div className="absolute inset-0 z-10 w-full h-full tldraw-wrapper">
           <Tldraw
-            inferDarkMode={false}
-            className="w-full h-full"
-            onMount={handleMount}
-            autoFocus={false}
-          />
+  inferDarkMode={false}
+  className="w-full h-full"
+  onMount={handleMount}
+  autoFocus={false}
+  components={{
+    Background: () => null, // 🔥 Is line se Tldraw ka apna background hide ho jayega aur aapka Grid/Dots nazar aayega
+  }}
+/>
         </div>
       </div>
 
