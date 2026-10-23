@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@tldraw/tldraw": "^5.4.2",
     "localforage": "^1.10.0",
