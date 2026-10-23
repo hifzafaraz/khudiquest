@@ -1,5 +1,3 @@
-// forceupdate
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
@@ -38,17 +36,11 @@ function InfiniteCanvas() {
     return cachedData ? JSON.parse(cachedData) : {};
   });
 
+  // 🔑 Refs for stable mount
   const savedJournalsRef = useRef(savedJournals);
   const selectedDayRef = useRef(selectedDayObj);
   useEffect(() => { savedJournalsRef.current = savedJournals; }, [savedJournals]);
   useEffect(() => { selectedDayRef.current = selectedDayObj; }, [selectedDayObj]);
-
-  // 🔑 Escape key se fullscreen band
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   const getStyleClass = () => {
     switch (canvasStyle) {
@@ -59,6 +51,7 @@ function InfiniteCanvas() {
     }
   };
 
+  // 🔑 Stable Mount: Prevents features from disappearing
   const handleMount = useCallback((editor) => {
     editorRef.current = editor;
     const saved = savedJournalsRef.current?.[selectedDayRef.current?.dateStr];
@@ -144,7 +137,7 @@ function InfiniteCanvas() {
           : 'w-full max-w-6xl mx-auto mt-4 animate-fade-in flex flex-col h-[78vh] space-y-3'
       }
     >
-      {/* HEADER — same features, plus fullscreen toggle */}
+      {/* HEADER */}
       <div className="bg-white border border-[#e6e4de] rounded-3xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -202,7 +195,7 @@ function InfiniteCanvas() {
         </div>
       </div>
 
-      {/* CANVAS — flex-grow, ab poori bachi hui jagah le raha hai */}
+      {/* CANVAS */}
       <div className="flex-grow w-full relative border border-[#e6e4de] rounded-3xl shadow-xl shadow-gray-100/40 overflow-hidden min-h-[400px]">
         <div className={`absolute inset-0 transition-all duration-300 pointer-events-none opacity-50 z-0 ${getStyleClass()}`} />
         <div className="absolute inset-0 z-10 mix-blend-multiply">
